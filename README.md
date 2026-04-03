@@ -60,7 +60,7 @@ Structured JSON Response
 
 * Python (FastAPI)
 * Google ADK (Agent Development Kit)
-* Gemini 2.0 Flash (Vertex AI)
+* Gemini 2.5-flash (Vertex AI)
 
 ### Deployment
 
