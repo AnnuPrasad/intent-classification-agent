@@ -20,9 +20,10 @@ It provides a simple web interface and API to classify user intent in real time.
 
 ```id="2nt9hu"
 intent-agent/
-├── agent.py          # ADK agent definition
-├── main.py           # FastAPI backend
-├── index.html        # Frontend UI
+├── app/
+|      ├── agent.py          # ADK agent definition
+|      ├── main.py           # FastAPI backend
+|      ├── index.html        # Frontend UI
 ├── requirements.txt
 ├── Dockerfile
 └── README.md
