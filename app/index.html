@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Intent Classifier</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg: #0d0d14;
+    --surface: #13131e;
+    --card: #171724;
+    --border: #22223a;
+    --accent: #7c6af7;
+    --accent-dim: rgba(124,106,247,0.15);
+    --accent2: #f76a8a;
+    --green: #4ade80;
+    --text: #e2e2f0;
+    --muted: #6b6b88;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 60px 20px 80px;
+  }
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 600px 400px at 20% 10%, rgba(124,106,247,0.07) 0%, transparent 70%),
+      radial-gradient(ellipse 500px 400px at 80% 90%, rgba(247,106,138,0.06) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+  .wrap {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 700px;
+  }
+  header { text-align: center; margin-bottom: 52px; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 7px;
+    background: var(--accent-dim);
+    border: 1px solid rgba(124,106,247,0.3);
+    color: var(--accent);
+    font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
+    padding: 5px 14px; border-radius: 100px; margin-bottom: 22px;
+  }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: #4ade80; animation: blink 2s infinite; display: inline-block; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+  h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(32px, 6vw, 52px);
+    font-weight: 800;
+    line-height: 1.08;
+    letter-spacing: -0.02em;
+    background: linear-gradient(130deg, #ffffff 0%, #c4bcff 50%, #f76a8a 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    margin-bottom: 12px;
+  }
+  .sub { color: var(--muted); font-size: 13px; line-height: 1.7; max-width: 380px; margin: 0 auto; }
+  .input-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 24px;
+    margin-bottom: 16px;
+    transition: border-color 0.25s;
+  }
+  .input-card:focus-within { border-color: rgba(124,106,247,0.45); }
+  .label { font-size: 11px; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; display: block; }
+  textarea {
+    width: 100%; background: var(--surface);
+    border: 1px solid var(--border); border-radius: 12px;
+    color: var(--text); font-family: 'DM Mono', monospace;
+    font-size: 14px; line-height: 1.7; padding: 14px 16px;
+    resize: none; min-height: 120px; outline: none;
+    transition: border-color 0.2s;
+  }
+  textarea::placeholder { color: var(--muted); }
+  textarea:focus { border-color: rgba(124,106,247,0.4); }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+  .chip {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    color: var(--muted); font-family: 'DM Mono', monospace;
+    font-size: 12px; padding: 4px 12px; border-radius: 100px;
+    cursor: pointer; transition: all 0.18s;
+  }
+  .chip:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+  .btn {
+    width: 100%; background: var(--accent);
+    color: #fff; border: none; border-radius: 12px;
+    font-family: 'DM Mono', monospace; font-size: 14px; font-weight: 500;
+    letter-spacing: 0.04em; padding: 15px;
+    cursor: pointer; transition: all 0.2s;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .btn:hover { background: #6b58f0; transform: translateY(-1px); }
+  .btn:active { transform: translateY(0); }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+  .spinner {
+    width: 16px; height: 16px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    display: inline-block;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .result-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 28px;
+    margin-top: 20px;
+    animation: fadeUp 0.4s ease both;
+    display: none;
+  }
+  .result-card.show { display: block; }
+  @keyframes fadeUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+  .result-label { font-size: 11px; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); margin-bottom: 16px; }
+  .intent-badge {
+    display: inline-flex; align-items: center; gap: 10px;
+    background: var(--accent-dim);
+    border: 1px solid rgba(124,106,247,0.35);
+    border-radius: 12px; padding: 12px 20px;
+    margin-bottom: 20px;
+  }
+  .intent-icon { font-size: 24px; }
+  .intent-name {
+    font-family: 'Syne', sans-serif;
+    font-size: 26px; font-weight: 800;
+    letter-spacing: -0.01em;
+    color: #c4bcff;
+    text-transform: capitalize;
+  }
+  .conf-row { margin-bottom: 20px; }
+  .conf-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .conf-text { font-size: 12px; color: var(--muted); }
+  .conf-val { font-size: 12px; font-weight: 500; }
+  .conf-val.high { color: var(--green); }
+  .conf-val.medium { color: #facc15; }
+  .conf-val.low { color: var(--accent2); }
+  .bar-bg { background: var(--surface); border-radius: 100px; height: 6px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 100px; transition: width 0.6s cubic-bezier(0.34,1.56,0.64,1); }
+  .bar-fill.high { background: var(--green); }
+  .bar-fill.medium { background: #facc15; }
+  .bar-fill.low { background: var(--accent2); }
+  .divider { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
+  .reasoning-box { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
+  .reasoning-box p { font-size: 13px; line-height: 1.7; color: #a0a0b8; }
+  .error-box {
+    background: rgba(247,106,138,0.08);
+    border: 1px solid rgba(247,106,138,0.25);
+    border-radius: 12px; padding: 14px 16px;
+    color: var(--accent2); font-size: 13px;
+    display: none; margin-top: 12px;
+  }
+  .error-box.show { display: block; }
+  .toggle-raw {
+    background: none; border: none; color: var(--muted);
+    font-family: 'DM Mono', monospace; font-size: 11px;
+    cursor: pointer; margin-top: 16px; padding: 0;
+    text-decoration: underline; letter-spacing: 0.05em;
+  }
+  .raw-json {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 12px 14px; margin-top: 10px;
+    font-size: 12px; color: #a0a0b8; white-space: pre-wrap;
+    word-break: break-all; display: none;
+  }
+  .raw-json.show { display: block; }
+  footer { text-align: center; margin-top: 40px; color: var(--muted); font-size: 11px; letter-spacing: 0.05em; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="pill"><span class="dot"></span> Gemini · ADK · Cloud Run</div>
+    <h1>Intent Classifier</h1>
+    <p class="sub">Type any sentence or paragraph and the AI agent will detect the intent behind it.</p>
+  </header>
+
+  <div class="input-card">
+    <span class="label">Your Text</span>
+    <textarea id="inputText" placeholder="e.g. I'm so happy today! Can you help me book a flight to Paris?"></textarea>
+    <div class="chips">
+      <span class="chip" onclick="fillExample(this)">I need help with my order</span>
+      <span class="chip" onclick="fillExample(this)">Good morning! How are you?</span>
+      <span class="chip" onclick="fillExample(this)">Cancel my subscription now</span>
+      <span class="chip" onclick="fillExample(this)">I'm so frustrated with this!</span>
+      <span class="chip" onclick="fillExample(this)">What time does the store open?</span>
+      <span class="chip" onclick="fillExample(this)">Thank you, you're amazing!</span>
+    </div>
+  </div>
+
+  <button class="btn" id="classifyBtn" onclick="classify()">
+    <span id="btnInner">Classify Intent</span>
+  </button>
+
+  <div class="error-box" id="errorBox"></div>
+
+  <div class="result-card" id="resultCard">
+    <div class="result-label">Detected Intent</div>
+    <div class="intent-badge">
+      <span class="intent-icon" id="intentIcon">🎯</span>
+      <span class="intent-name" id="intentName">—</span>
+    </div>
+    <div class="conf-row">
+      <div class="conf-header">
+        <span class="conf-text">Confidence</span>
+        <span class="conf-val" id="confVal">—</span>
+      </div>
+      <div class="bar-bg"><div class="bar-fill" id="confBar" style="width:0%"></div></div>
+    </div>
+    <hr class="divider"/>
+    <div class="result-label">Reasoning</div>
+    <div class="reasoning-box"><p id="reasoning">—</p></div>
+    <button class="toggle-raw" onclick="toggleRaw()">show raw response</button>
+    <div class="raw-json" id="rawJson"></div>
+  </div>
+
+  <footer>Powered by Google ADK + Gemini 2.0 Flash · intentclassifire</footer>
+</div>
+
+<script>
+const API_URL = '/classify';
+
+const ICONS = {
+  greeting:'👋', farewell:'👋', happy:'😊', joy:'😊', excited:'🎉',
+  sad:'😢', angry:'😠', frustrated:'😤', complaint:'😤',
+  question:'❓', query:'🔍', inquiry:'🔍', booking:'📅',
+  reservation:'📅', cancellation:'❌', cancel:'❌',
+  support_request:'🛟', support:'🛟', help:'🛟',
+  compliment:'🌟', praise:'🌟', gratitude:'🙏', thanks:'🙏',
+  permission:'🔐', request:'📋', order:'🛒',
+  sleepy:'😴', tired:'😴', confused:'😕', neutral:'😐', other:'💬'
+};
+
+function getIcon(intent) {
+  const k = Object.keys(ICONS).find(k => intent.toLowerCase().includes(k));
+  return k ? ICONS[k] : '💬';
+}
+
+function fillExample(el) {
+  document.getElementById('inputText').value = el.textContent.trim();
+}
+
+function toggleRaw() {
+  const el = document.getElementById('rawJson');
+  el.classList.toggle('show');
+  document.querySelector('.toggle-raw').textContent =
+    el.classList.contains('show') ? 'hide raw response' : 'show raw response';
+}
+
+async function classify() {
+  const text = document.getElementById('inputText').value.trim();
+  if (!text) { alert('Please enter some text first.'); return; }
+
+  const btn = document.getElementById('classifyBtn');
+  const btnInner = document.getElementById('btnInner');
+  const errorBox = document.getElementById('errorBox');
+  const resultCard = document.getElementById('resultCard');
+
+  btn.disabled = true;
+  btnInner.innerHTML = '<span class="spinner"></span> Classifying...';
+  errorBox.classList.remove('show');
+  resultCard.classList.remove('show');
+
+  try {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text })
+    });
+
+    if (!res.ok) throw new Error('Server returned ' + res.status);
+
+    const data = await res.json();
+    const raw = data.intent_result || '';
+    document.getElementById('rawJson').textContent = JSON.stringify(data, null, 2);
+
+    let parsed;
+    try {
+      const match = raw.match(/\{[\s\S]*\}/);
+      parsed = JSON.parse(match ? match[0] : raw);
+    } catch {
+      parsed = { intent: raw || 'other', confidence: 'medium', reasoning: 'See raw response.' };
+    }
+
+    const intent = (parsed.intent || 'other').replace(/_/g, ' ');
+    const confidence = (parsed.confidence || 'medium').toLowerCase();
+    const reasoning = parsed.reasoning || '—';
+    const pct = confidence === 'high' ? 92 : confidence === 'medium' ? 60 : 28;
+
+    document.getElementById('intentIcon').textContent = getIcon(intent);
+    document.getElementById('intentName').textContent = intent;
+
+    const cv = document.getElementById('confVal');
+    cv.textContent = confidence;
+    cv.className = 'conf-val ' + confidence;
+
+    const bar = document.getElementById('confBar');
+    bar.style.width = '0%';
+    bar.className = 'bar-fill ' + confidence;
+    setTimeout(() => { bar.style.width = pct + '%'; }, 60);
+
+    document.getElementById('reasoning').textContent = reasoning;
+    resultCard.classList.add('show');
+
+  } catch(err) {
+    errorBox.textContent = 'Error: ' + err.message;
+    errorBox.classList.add('show');
+  } finally {
+    btn.disabled = false;
+    btnInner.textContent = 'Classify Intent';
+  }
+}
+
+document.getElementById('inputText').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && e.ctrlKey) classify();
+});
+</script>
+</body>
+</html>
